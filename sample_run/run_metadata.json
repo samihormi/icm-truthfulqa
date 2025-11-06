@@ -1,0 +1,6 @@
+{
+  "run_name": "20251106_113810_model-Meta-Llama-3.1-405B_k6_train50_test30_iters200_seed42",
+  "run_dir": "runs/20251106_113810_model-Meta-Llama-3.1-405B_k6_train50_test30_iters200_seed42",
+  "command": "python run_icm.py --model meta-llama/Meta-Llama-3.1-405B --train_samples 50 --test_samples 30 --max_icm_iters 200",
+  "timestamp": "20251106_113810"
+}

@@ -94,6 +94,21 @@ runs/latest/four_bars.png
 --seed            Random seed (default: 42)
 ```
 
+## Sample Run
+
+A validation run is provided in `sample_run/` showing results on 50 train / 30 test samples:
+
+- `four_bars.png` - Comparison graph (the main deliverable)
+- `results.json` - Summary metrics  
+- `test_predictions.json` - All test predictions
+- `icm_generated_labels.json` - ICM-learned labels
+
+**Sample run results:**
+- Random: 40%
+- Zero-shot: 63%
+- ICM: **80%**
+- Golden: 100%
+
 ## Expected Results
 
 On full dataset (256 train, 100 test):
