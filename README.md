@@ -11,12 +11,16 @@ pip install -r requirements.txt
 # Set API key
 export HYPERBOLIC_API_KEY="your-key-here"
 
-# Run ICM (full dataset)
-python run_icm.py --model meta-llama/Meta-Llama-3.1-405B
-
 # Quick test (30 train, 20 test samples)
 python run_icm.py --model meta-llama/Meta-Llama-3.1-405B \
   --train_samples 30 --test_samples 20 --max_icm_iters 100
+
+# Full run (256 train, 100 test)
+python run_icm.py --model meta-llama/Meta-Llama-3.1-405B
+
+# View latest results
+cat runs/latest/results.json
+open runs/latest/four_bars.png
 ```
 
 ## What This Does
@@ -45,13 +49,21 @@ Where `P_θ(D)` is mutual predictability: how well each label predicts others.
 
 **Search:** Simulated annealing with temperature cooling.
 
-## Output
+## Output Structure
 
-**Files:**
-- `outputs/four_bars.png` - Main figure (4 bars on 0-100% scale)
-- `outputs/final_results.json` - All metrics
-- `outputs/icm_train_labels.json` - ICM-generated labels
-- `outputs/icm_predictions.json` - Test predictions
+Each run creates a timestamped directory with hyperparameters:
+```
+runs/
+├── 20251106_120000_model-Meta-Llama-3.1-405B_k6_trainfull_testfull_iters500_seed42/
+│   ├── results.json                  # Summary metrics
+│   ├── test_predictions.json         # All test predictions
+│   ├── icm_generated_labels.json     # Train labels from ICM
+│   ├── four_bars.png                 # Comparison graph
+│   └── run_metadata.json             # Run configuration
+└── latest -> [symlink to most recent run]
+```
+
+**No overwrites** - each run is preserved with full hyperparameter tracking
 
 **Graph shows:**
 - Random baseline
@@ -63,11 +75,17 @@ Where `P_θ(D)` is mutual predictability: how well each label predicts others.
 
 ```
 --model           Base model (default: Meta-Llama-3.1-405B)
---train_samples   Limit train examples (optional)
---test_samples    Limit test examples (optional)
+--train_samples   Limit train examples (optional, for testing)
+--test_samples    Limit test examples (optional, for testing)
 --max_icm_iters   ICM iterations (default: 500)
 --k               In-context examples (default: 6)
 --seed            Random seed (default: 42)
+--output_dir      Base output directory (default: runs)
+```
+
+**Output naming:** Automatic timestamped directories with all hyperparameters:
+```
+runs/YYYYMMDD_HHMMSS_model-{MODEL}_k{K}_train{N}_test{M}_iters{I}_seed{S}/
 ```
 
 ## Notes

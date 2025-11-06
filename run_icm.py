@@ -173,7 +173,7 @@ def main():
     parser.add_argument('--model', type=str, default='meta-llama/Meta-Llama-3.1-405B')
     parser.add_argument('--train_data', type=str, default='data/truthfulqa_train.json')
     parser.add_argument('--test_data', type=str, default='data/truthfulqa_test.json')
-    parser.add_argument('--output_dir', type=str, default='outputs')
+    parser.add_argument('--output_dir', type=str, default='runs')
     parser.add_argument('--k', type=int, default=6, help='Number of in-context examples')
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--max_icm_iters', type=int, default=500, help='ICM iterations')
@@ -185,7 +185,25 @@ def main():
     if args.api_key is None:
         args.api_key = os.environ.get('HYPERBOLIC_API_KEY')
     
-    os.makedirs(args.output_dir, exist_ok=True)
+    # Create timestamped run directory with hyperparameters
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    model_name = args.model.split('/')[-1]  # Extract model name
+    train_size = args.train_samples if args.train_samples else "full"
+    test_size = args.test_samples if args.test_samples else "full"
+    
+    run_name = f"{timestamp}_model-{model_name}_k{args.k}_train{train_size}_test{test_size}_iters{args.max_icm_iters}_seed{args.seed}"
+    run_dir = os.path.join(args.output_dir, run_name)
+    os.makedirs(run_dir, exist_ok=True)
+    
+    # Create symlink to latest run
+    latest_link = os.path.join(args.output_dir, 'latest')
+    if os.path.islink(latest_link):
+        os.remove(latest_link)
+    os.symlink(run_name, latest_link)
+    
+    # Update output_dir to use run_dir
+    args.output_dir = run_dir
     
     print("="*70)
     print("ICM ALGORITHM 1 - UNSUPERVISED ELICITATION")
@@ -225,10 +243,10 @@ def main():
     icm_train_labels = icm.run(train_data)
     
     # Save ICM labels
-    icm_labels_path = os.path.join(args.output_dir, 'icm_train_labels.json')
+    icm_labels_path = os.path.join(args.output_dir, 'icm_generated_labels.json')
     with open(icm_labels_path, 'w') as f:
         json.dump({str(k): v for k, v in icm_train_labels.items()}, f, indent=2)
-    print(f"\n✅ Saved ICM labels to {icm_labels_path}")
+    print(f"\n✅ Saved ICM-generated labels to {icm_labels_path}")
     
     # Step 2: Use ICM labels to predict TEST set
     print("\n" + "="*70)
@@ -271,33 +289,50 @@ def main():
         print("❌ Below expected performance")
     print("="*70 + "\n")
     
-    # Step 5: Save results
+    # Step 5: Save results with proper structure
     results = {
-        'model': args.model,
-        'k': args.k,
-        'n_train': len(train_data),
-        'n_test': len(test_data),
-        'icm_iterations': args.max_icm_iters,
-        'seed': args.seed,
-        'accuracies': {
-            'random': random_acc,
-            'zero_shot': zero_shot_acc,
+        'run_config': {
+            'timestamp': timestamp,
+            'model': args.model,
+            'k': args.k,
+            'n_train': len(train_data),
+            'n_test': len(test_data),
+            'icm_iterations': args.max_icm_iters,
+            'seed': args.seed,
+            'base_url': args.base_url
+        },
+        'results': {
+            'random_baseline': random_acc,
+            'zero_shot_baseline': zero_shot_acc,
             'icm': icm_accuracy,
-            'golden': golden_acc
+            'golden_upper_bound': golden_acc
         },
         'sample_predictions': icm_predictions[:5]
     }
     
-    results_path = os.path.join(args.output_dir, 'final_results.json')
+    # Save comprehensive results
+    results_path = os.path.join(args.output_dir, 'results.json')
     with open(results_path, 'w') as f:
         json.dump(results, f, indent=2)
     print(f"✅ Saved results to {results_path}")
     
-    # Save all predictions
-    predictions_path = os.path.join(args.output_dir, 'icm_predictions.json')
+    # Save all test predictions
+    predictions_path = os.path.join(args.output_dir, 'test_predictions.json')
     with open(predictions_path, 'w') as f:
         json.dump(icm_predictions, f, indent=2)
-    print(f"✅ Saved all predictions to {predictions_path}")
+    print(f"✅ Saved all test predictions to {predictions_path}")
+    
+    # Save run metadata
+    metadata = {
+        'run_name': run_name,
+        'run_dir': run_dir,
+        'command': ' '.join(['python'] + [arg for arg in __import__('sys').argv]),
+        'timestamp': timestamp
+    }
+    metadata_path = os.path.join(args.output_dir, 'run_metadata.json')
+    with open(metadata_path, 'w') as f:
+        json.dump(metadata, f, indent=2)
+    print(f"✅ Saved run metadata to {metadata_path}")
     
     # Step 6: Generate four-bar graph
     print("\n" + "="*70)
@@ -311,7 +346,16 @@ def main():
     plot_four_bars(accuracies, labels, output_path)
     
     print("\n" + "="*70)
-    print("✅ COMPLETE! All results saved to outputs/")
+    print("✅ RUN COMPLETE!")
+    print("="*70)
+    print(f"📁 Results saved to: {run_dir}")
+    print(f"🔗 Latest run link: {latest_link}")
+    print("\nFiles generated:")
+    print(f"  - results.json           (summary metrics)")
+    print(f"  - test_predictions.json  (all test predictions)")
+    print(f"  - icm_generated_labels.json (train labels from ICM)")
+    print(f"  - four_bars.png          (comparison graph)")
+    print(f"  - run_metadata.json      (run configuration)")
     print("="*70)
 
 
